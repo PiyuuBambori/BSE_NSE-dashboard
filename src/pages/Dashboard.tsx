@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useDashboardStore } from '../store/dashboardStore';
 import { useAnnouncements } from '../hooks/useAnnouncements';
 import { useRealtimeAnnouncements } from '../hooks/useRealtimeAnnouncements';
@@ -131,7 +131,7 @@ export const Dashboard: React.FC = () => {
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
     const current = filters.page;
-    
+
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
@@ -172,11 +172,10 @@ export const Dashboard: React.FC = () => {
               {totalCount.toLocaleString()} records
             </span>
             <div title={`Realtime: ${connectionStatus}`} className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' :
-                connectionStatus === 'connecting' ? 'bg-amber-400 animate-pulse' :
-                'bg-red-400'
-              }`} />
+              <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' :
+                  connectionStatus === 'connecting' ? 'bg-amber-400 animate-pulse' :
+                    'bg-red-400'
+                }`} />
               <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
                 {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting...' : 'Offline'}
               </span>
@@ -226,11 +225,10 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-lg transition-all shadow-sm ${
-                      showFilters || hasActiveFilters
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-lg transition-all shadow-sm ${showFilters || hasActiveFilters
                         ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
                         : 'text-gray-600 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <Filter className="h-3.5 w-3.5" />
                     Filters
@@ -287,11 +285,10 @@ export const Dashboard: React.FC = () => {
                         <button
                           key={d.key}
                           onClick={() => handleDateRangeChange(d.key as any)}
-                          className={`text-xs px-2.5 py-1.5 rounded-md border font-semibold transition-all ${
-                            filters.dateRange === d.key
+                          className={`text-xs px-2.5 py-1.5 rounded-md border font-semibold transition-all ${filters.dateRange === d.key
                               ? 'bg-indigo-50 text-indigo-650 border-indigo-200 shadow-sm'
                               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           {d.label}
                         </button>
@@ -346,11 +343,10 @@ export const Dashboard: React.FC = () => {
                           <button
                             key={tag}
                             onClick={() => handleTagToggle(tag)}
-                            className={`text-xs px-2.5 py-1 rounded-full border font-semibold transition-all ${
-                              isSelected
+                            className={`text-xs px-2.5 py-1 rounded-full border font-semibold transition-all ${isSelected
                                 ? 'bg-indigo-500 text-white border-transparent shadow-sm'
                                 : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                            }`}
+                              }`}
                           >
                             {tag}
                           </button>
@@ -440,19 +436,18 @@ export const Dashboard: React.FC = () => {
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    
+
                     {getPageNumbers().map((p, idx) => (
                       <button
                         key={idx}
                         onClick={() => typeof p === 'number' && handlePageChange(p)}
                         disabled={p === '...'}
-                        className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-semibold rounded-lg transition-all border ${
-                          p === filters.page
+                        className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-semibold rounded-lg transition-all border ${p === filters.page
                             ? 'bg-indigo-600 text-white border-transparent shadow-sm'
                             : p === '...'
-                            ? 'text-gray-400 border-transparent hover:bg-transparent'
-                            : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
-                        }`}
+                              ? 'text-gray-400 border-transparent hover:bg-transparent'
+                              : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
+                          }`}
                       >
                         {p}
                       </button>
