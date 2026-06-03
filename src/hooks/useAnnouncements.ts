@@ -1,28 +1,18 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useDashboardStore } from '../store/dashboardStore';
 import { announcementsService } from '../services/announcements';
 
-const LIMIT = 30; // Load 30 announcements per chunk
+const LIMIT = 100; // 100 records per page
 
 export const useAnnouncements = () => {
   const {
     filters,
     setAnnouncements,
-    appendAnnouncements,
     setStats,
     setLoading,
     setError,
     loading,
   } = useDashboardStore();
-
-  // Ref to track offset across calls to avoid race conditions
-  const offsetRef = useRef(0);
-  const filtersRef = useRef(filters);
-
-  // Keep filters ref in sync
-  useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
 
   /**
    * Fetches statistics from the database
@@ -37,59 +27,34 @@ export const useAnnouncements = () => {
   }, [setStats]);
 
   /**
-   * Refreshes the feed completely (resets offset to 0 and queries new data)
+   * Fetches the specific page of announcements
    */
-  const refreshFeed = useCallback(async () => {
+  const loadFeed = useCallback(async () => {
     setLoading(true);
     setError(null);
-    offsetRef.current = 0;
+
+    const offset = (filters.page - 1) * LIMIT;
 
     try {
       const statsPromise = loadStats();
       const dataPromise = announcementsService.fetchAnnouncements({
-        ...filtersRef.current,
+        ...filters,
         limit: LIMIT,
-        offset: 0,
+        offset,
       });
 
       const [, result] = await Promise.all([statsPromise, dataPromise]);
-      setAnnouncements(result.data, result.hasMore);
+      setAnnouncements(result.data, result.hasMore, result.totalCount);
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching announcements.');
     } finally {
       setLoading(false);
     }
-  }, [setAnnouncements, setLoading, setError, loadStats]);
+  }, [filters, setAnnouncements, setLoading, setError, loadStats]);
 
-  /**
-   * Load the next page of announcements
-   */
-  const fetchNextPage = useCallback(async () => {
-    const { announcements, hasMore } = useDashboardStore.getState();
-    if (loading || !hasMore) return;
-
-    setLoading(true);
-    const currentOffset = announcements.length;
-    offsetRef.current = currentOffset;
-
-    try {
-      const result = await announcementsService.fetchAnnouncements({
-        ...filtersRef.current,
-        limit: LIMIT,
-        offset: currentOffset,
-      });
-
-      appendAnnouncements(result.data, result.hasMore);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load more announcements.');
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, appendAnnouncements, setLoading, setError]);
-
-  // Load feed automatically when filters change
+  // Load feed automatically when filters (including page) change
   useEffect(() => {
-    refreshFeed();
+    loadFeed();
   }, [
     filters.source,
     filters.search,
@@ -97,12 +62,12 @@ export const useAnnouncements = () => {
     filters.startDate,
     filters.endDate,
     filters.selectedTags,
-    refreshFeed,
+    filters.page,
+    loadFeed,
   ]);
 
   return {
-    refresh: refreshFeed,
-    fetchNextPage,
+    refresh: loadFeed,
     loadStats,
   };
 };

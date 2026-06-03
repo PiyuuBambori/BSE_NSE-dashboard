@@ -1,9 +1,20 @@
 import { supabase } from '../lib/supabase';
-import type { Announcement, DashboardFilters, DashboardStats } from '../types/announcement';
+import type { Announcement, DashboardFilters, DashboardStats, SourceFilter } from '../types/announcement';
+import { SOURCE_DB_MAP } from '../types/announcement';
 
 export interface FetchAnnouncementsParams extends DashboardFilters {
   limit: number;
   offset: number;
+}
+
+/**
+ * Resolves a SourceFilter into an array of raw DB source values for the query.
+ * Returns null when no filtering is needed (i.e. "All").
+ */
+function resolveSourceValues(filter: SourceFilter): string[] | null {
+  if (filter === 'All') return null; // no filter needed
+  const dbValues = SOURCE_DB_MAP[filter];
+  return dbValues || [filter]; // fallback to using the filter value directly
 }
 
 export const announcementsService = {
@@ -13,17 +24,21 @@ export const announcementsService = {
   async fetchAnnouncements(params: FetchAnnouncementsParams): Promise<{
     data: Announcement[];
     hasMore: boolean;
+    totalCount: number;
   }> {
     try {
       let query = supabase
         .from('corporate_announcements')
         .select('*', { count: 'exact' });
 
-      // 1. Source filter: source IN ('NSE', 'BSE')
-      if (params.source === 'All') {
-        query = query.in('source', ['NSE', 'BSE']);
-      } else {
-        query = query.eq('source', params.source);
+      // 1. Source filter
+      const sourceValues = resolveSourceValues(params.source);
+      if (sourceValues) {
+        if (sourceValues.length === 1) {
+          query = query.eq('source', sourceValues[0]);
+        } else {
+          query = query.in('source', sourceValues);
+        }
       }
 
       // 2. Date filtering
@@ -47,50 +62,40 @@ export const announcementsService = {
           query = query.lte('published_at', end.toISOString());
         }
       }
+      // If params.dateRange === 'All', we don't apply any published_at constraint
 
-      // 3. Search filter (Headline matching)
+      // 3. Search filter
       if (params.search && params.search.trim() !== '') {
         const searchTerm = params.search.trim();
-        // Search inside headline or tags
-        // To be safe against tag type (text[] vs text) we check for ilike in headline or tags
         query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%`);
       }
 
-      // 4. Tags Multi-select filtering
+      // 4. Tags filter
       if (params.selectedTags && params.selectedTags.length > 0) {
-        // Try filtering tags. We handle it as a containment filter
-        // If your tags column in Supabase is text[], containments works via .contains()
-        // If it fails because of database structure, we'll log it.
         try {
           query = query.contains('tags', params.selectedTags);
         } catch (e) {
           console.warn('Tags contains query failed, falling back to text-based matching', e);
-          // Fallback if tags is not an array
           params.selectedTags.forEach((tag) => {
             query = query.ilike('tags', `%${tag}%`);
           });
         }
       }
 
-      // 5. Pagination and sorting (newest first)
+      // 5. Pagination and sorting
       query = query
         .order('published_at', { ascending: false })
         .range(params.offset, params.offset + params.limit - 1);
 
       const { data, count, error } = await query;
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const announcements = (data || []) as Announcement[];
       const totalCount = count || 0;
       const hasMore = params.offset + announcements.length < totalCount;
 
-      return {
-        data: announcements,
-        hasMore,
-      };
+      return { data: announcements, hasMore, totalCount };
     } catch (error) {
       console.error('Error fetching announcements:', error);
       throw error;
@@ -98,7 +103,7 @@ export const announcementsService = {
   },
 
   /**
-   * Fetches database counters for NSE/BSE and Today's totals using optimized head queries
+   * Fetches database counters for NSE, BSE, News, and Today's totals
    */
   async fetchStats(): Promise<DashboardStats> {
     try {
@@ -117,35 +122,43 @@ export const announcementsService = {
         .select('*', { count: 'exact', head: true })
         .eq('source', 'BSE');
 
-      // Query total today (NSE + BSE)
+      // Query total news (everything that is NOT NSE or BSE)
+      const newsPromise = supabase
+        .from('corporate_announcements')
+        .select('*', { count: 'exact', head: true })
+        .not('source', 'in', '("NSE","BSE")');
+
+      // Query total today (all sources)
       const todayPromise = supabase
         .from('corporate_announcements')
         .select('*', { count: 'exact', head: true })
-        .in('source', ['NSE', 'BSE'])
         .gte('published_at', startOfDay);
 
-      const [nseRes, bseRes, todayRes] = await Promise.all([
+      const [nseRes, bseRes, newsRes, todayRes] = await Promise.all([
         nsePromise,
         bsePromise,
+        newsPromise,
         todayPromise,
       ]);
 
       if (nseRes.error) throw nseRes.error;
       if (bseRes.error) throw bseRes.error;
+      if (newsRes.error) throw newsRes.error;
       if (todayRes.error) throw todayRes.error;
 
       return {
         totalNse: nseRes.count || 0,
         totalBse: bseRes.count || 0,
+        totalNews: newsRes.count || 0,
         totalToday: todayRes.count || 0,
         lastUpdate: new Date().toLocaleTimeString(),
       };
     } catch (error) {
       console.error('Error fetching stats:', error);
-      // Return zeroed stats if table does not exist yet to prevent crash
       return {
         totalNse: 0,
         totalBse: 0,
+        totalNews: 0,
         totalToday: 0,
         lastUpdate: new Date().toLocaleTimeString() + ' (Error loading counts)',
       };

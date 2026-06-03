@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import type { Announcement } from '../types/announcement';
-import { X, ExternalLink, Calendar, Landmark, Tag } from 'lucide-react';
+import { getSourceColors, getDisplaySource } from '../types/announcement';
+import { X, ExternalLink, Calendar, Landmark, Tag, Newspaper } from 'lucide-react';
 
 interface AnnouncementDrawerProps {
   announcement: Announcement | null;
@@ -33,6 +34,9 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
   if (!announcement) return null;
 
   const { source, headline, published_at, tags, article_cleaned, url } = announcement;
+  const displaySource = getDisplaySource(source);
+  const colors = getSourceColors(source);
+  const isExchange = displaySource === 'NSE' || displaySource === 'BSE';
 
   const formatDate = (dateStr: string) => {
     try {
@@ -67,17 +71,6 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
 
   const parsedTags = getTags();
 
-  const sourceConfig =
-    source === 'NSE'
-      ? {
-          badge: 'bg-violet-50 text-violet-600 border-violet-200',
-          accent: 'from-violet-500 to-purple-600',
-        }
-      : {
-          badge: 'bg-blue-50 text-blue-600 border-blue-200',
-          accent: 'from-blue-500 to-cyan-600',
-        };
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
@@ -89,16 +82,16 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
       {/* Drawer */}
       <div className="relative w-full max-w-2xl h-full bg-white shadow-2xl flex flex-col z-10 animate-slideIn">
         {/* Accent line */}
-        <div className={`h-1 bg-gradient-to-r ${sourceConfig.accent}`} />
+        <div className={`h-1 bg-gradient-to-r ${colors.accent}`} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${sourceConfig.badge}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${colors.badge}`}
             >
-              <Landmark className="h-3 w-3" />
-              {source} Exchange
+              {isExchange ? <Landmark className="h-3 w-3" /> : <Newspaper className="h-3 w-3" />}
+              {displaySource}
             </span>
           </div>
           <button
@@ -145,10 +138,10 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
             {/* Article content */}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Announcement Details
+                {isExchange ? 'Announcement Details' : 'Article Content'}
               </h3>
               <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap bg-gray-50 p-5 rounded-xl border border-gray-100 max-w-none">
-                {article_cleaned || 'No details provided in this announcement.'}
+                {article_cleaned || 'No details provided.'}
               </div>
             </div>
           </div>
@@ -166,7 +159,7 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm shadow-indigo-500/20"
             >
-              Open Source
+              {isExchange ? 'Open Filing' : 'Read Full Article'}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           ) : (

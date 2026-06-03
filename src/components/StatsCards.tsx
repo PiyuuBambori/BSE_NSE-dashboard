@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboardStore } from '../store/dashboardStore';
-import { Landmark, Calendar, Clock, RefreshCw, TrendingUp, ArrowUpRight, Activity } from 'lucide-react';
+import { Landmark, Calendar, Clock, RefreshCw, ArrowUpRight, Activity, Newspaper } from 'lucide-react';
 
 interface StatsCardsProps {
   onRefresh: () => void;
@@ -36,6 +36,16 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ onRefresh, isRefreshing 
       changeBg: 'bg-blue-50 text-blue-600',
     },
     {
+      label: 'News Articles',
+      value: formatNumber(stats.totalNews),
+      icon: <Newspaper className="h-4 w-4" />,
+      change: 'Live',
+      subtitle: '9 channels',
+      accent: 'from-sky-500 to-indigo-600',
+      iconBg: 'bg-sky-50 text-sky-500',
+      changeBg: 'bg-sky-50 text-sky-600',
+    },
+    {
       label: "Today's Count",
       value: formatNumber(stats.totalToday),
       icon: <Calendar className="h-4 w-4" />,
@@ -56,17 +66,17 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ onRefresh, isRefreshing 
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {cards.map((card, idx) => (
         <div
           key={idx}
-          className="group bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-gray-300/80 transition-all duration-200 relative overflow-hidden"
+          className="group bg-white border border-gray-200/80 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-gray-300/80 transition-all duration-200 relative overflow-hidden"
         >
           {/* Accent bar */}
           <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${card.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
-          <div className="flex justify-between items-start mb-3">
-            <p className="text-[13px] text-gray-500 font-medium">{card.label}</p>
+          <div className="flex justify-between items-start mb-2">
+            <p className="text-[12px] text-gray-500 font-medium">{card.label}</p>
             <div className={`p-1.5 rounded-lg ${card.iconBg}`}>
               {card.icon}
             </div>
@@ -84,12 +94,12 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ onRefresh, isRefreshing 
               </button>
             </div>
           ) : (
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{card.value}</h3>
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">{card.value}</h3>
           )}
 
           {card.change && !card.isTime && (
-            <div className="flex items-center gap-1.5 mt-2.5">
-              <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded ${card.changeBg}`}>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.changeBg}`}>
                 {card.change === 'Live' ? (
                   <Activity className="w-2.5 h-2.5" />
                 ) : (
@@ -97,17 +107,17 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ onRefresh, isRefreshing 
                 )}
                 {card.change}
               </span>
-              <span className="text-[11px] text-gray-400">{card.subtitle}</span>
+              <span className="text-[10px] text-gray-400">{card.subtitle}</span>
             </div>
           )}
 
           {card.isTime && (
-            <div className="flex items-center gap-1.5 mt-2.5">
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600">
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600">
                 <Activity className="w-2.5 h-2.5" />
                 Active
               </span>
-              <span className="text-[11px] text-gray-400">Realtime updates</span>
+              <span className="text-[10px] text-gray-400">Realtime</span>
             </div>
           )}
         </div>

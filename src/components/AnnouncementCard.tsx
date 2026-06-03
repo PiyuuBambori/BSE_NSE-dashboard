@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Announcement } from '../types/announcement';
-import { Landmark, ArrowUpRight, Calendar } from 'lucide-react';
+import { getSourceColors, getDisplaySource } from '../types/announcement';
+import { Landmark, ArrowUpRight, Calendar, Newspaper } from 'lucide-react';
 
 interface AnnouncementCardProps {
   announcement: Announcement;
@@ -16,6 +17,9 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   style,
 }) => {
   const { source, headline, published_at } = announcement;
+  const displaySource = getDisplaySource(source);
+  const colors = getSourceColors(source);
+  const isExchange = displaySource === 'NSE' || displaySource === 'BSE';
 
   const formatDate = (dateStr: string) => {
     try {
@@ -30,11 +34,6 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
     }
   };
 
-  const sourceStyles =
-    source === 'NSE'
-      ? { badge: 'bg-violet-50 text-violet-600 border-violet-100', letter: 'from-violet-400 to-purple-500' }
-      : { badge: 'bg-blue-50 text-blue-600 border-blue-100', letter: 'from-blue-400 to-cyan-500' };
-
   // Grid card layout
   if (viewMode === 'grid') {
     return (
@@ -44,9 +43,9 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         onClick={() => onClick(announcement)}
       >
         <div className="flex items-center justify-between mb-3">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${sourceStyles.badge}`}>
-            <Landmark className="h-2.5 w-2.5" />
-            {source}
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${colors.badge}`}>
+            {isExchange ? <Landmark className="h-2.5 w-2.5" /> : <Newspaper className="h-2.5 w-2.5" />}
+            {displaySource}
           </span>
           <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
             <Calendar className="h-2.5 w-2.5" />
@@ -71,7 +70,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
     );
   }
 
-  // List row layout (default)
+  // List row layout
   return (
     <div
       style={style}
@@ -80,19 +79,19 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
     >
       {/* Headline */}
       <div className="col-span-6 flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${sourceStyles.letter} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 shadow-sm`}>
-          {source.charAt(0)}
+        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${colors.letter} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 shadow-sm`}>
+          {displaySource.charAt(0)}
         </div>
         <span className="text-[13px] font-medium text-gray-700 line-clamp-1 group-hover:text-indigo-600 transition-colors">
           {headline}
         </span>
       </div>
 
-      {/* Exchange */}
+      {/* Source */}
       <div className="col-span-2 flex items-center">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${sourceStyles.badge}`}>
-          <Landmark className="h-2.5 w-2.5" />
-          {source}
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${colors.badge}`}>
+          {isExchange ? <Landmark className="h-2.5 w-2.5" /> : <Newspaper className="h-2.5 w-2.5" />}
+          {displaySource}
         </span>
       </div>
 

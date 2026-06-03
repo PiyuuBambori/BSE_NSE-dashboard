@@ -9,7 +9,6 @@ export const useRealtimeAnnouncements = (
   const { addRealtimeAnnouncement, setConnectionStatus } = useDashboardStore();
   const onNewAnnouncementRef = useRef(onNewAnnouncement);
 
-  // Keep callback ref updated to avoid re-triggering subscription
   useEffect(() => {
     onNewAnnouncementRef.current = onNewAnnouncement;
   }, [onNewAnnouncement]);
@@ -28,9 +27,9 @@ export const useRealtimeAnnouncements = (
         },
         (payload) => {
           const newRow = payload.new as Announcement;
-          
-          // Verify that newRow exists and has proper attributes
-          if (newRow && (newRow.source === 'NSE' || newRow.source === 'BSE')) {
+
+          // Accept all sources — the store handles filter matching
+          if (newRow && newRow.source && newRow.headline) {
             addRealtimeAnnouncement(newRow);
             if (onNewAnnouncementRef.current) {
               onNewAnnouncementRef.current(newRow);
@@ -43,7 +42,6 @@ export const useRealtimeAnnouncements = (
           setConnectionStatus('connected');
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setConnectionStatus('disconnected');
-          // Reconnection is handled automatically by Supabase client
         }
       });
 
