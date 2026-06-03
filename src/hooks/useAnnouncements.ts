@@ -11,7 +11,6 @@ export const useAnnouncements = () => {
     setStats,
     setLoading,
     setError,
-    loading,
   } = useDashboardStore();
 
   /**
