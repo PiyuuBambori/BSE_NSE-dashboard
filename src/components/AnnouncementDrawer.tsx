@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import type { Announcement } from '../types/announcement';
 import { getSourceColors, getDisplaySource } from '../types/announcement';
-import { X, ExternalLink, Calendar, Landmark, Tag, Newspaper } from 'lucide-react';
+import { X, ExternalLink, Calendar, Landmark, Tag, Newspaper, Sparkles, FileText, ChevronDown, ChevronUp, Mail, Phone, TrendingUp } from 'lucide-react';
+import { parseAnnouncementText } from '../lib/textCleaner';
 
 interface AnnouncementDrawerProps {
   announcement: Announcement | null;
@@ -12,6 +13,13 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
   announcement,
   onClose,
 }) => {
+  const [viewMode, setViewMode] = useState<'reader' | 'raw'>('reader');
+  const [coverLetterOpen, setCoverLetterOpen] = useState<boolean>(false);
+
+  const parsed = useMemo(() => {
+    return parseAnnouncementText(announcement?.article_cleaned);
+  }, [announcement?.article_cleaned]);
+
   useEffect(() => {
     if (announcement) {
       document.body.style.overflow = 'hidden';
@@ -135,14 +143,181 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
 
             <hr className="border-gray-100" />
 
-            {/* Article content */}
-            <div>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                {isExchange ? 'Announcement Details' : 'Article Content'}
-              </h3>
-              <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap bg-gray-50 p-5 rounded-xl border border-gray-100 max-w-none">
-                {article_cleaned || 'No details provided.'}
+            {/* View Mode Toggle */}
+            <div className="flex justify-between items-center bg-gray-50/80 p-1.5 rounded-xl border border-gray-100/80">
+              <span className="text-xs font-semibold text-gray-500 pl-1.5">
+                {isExchange ? 'Filing Content' : 'Article Content'}
+              </span>
+              <div className="flex bg-white p-0.5 rounded-lg text-[11px] font-semibold border border-gray-100 shadow-sm">
+                <button
+                  onClick={() => setViewMode('reader')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-md transition-all duration-200 cursor-pointer ${
+                    viewMode === 'reader'
+                      ? 'bg-indigo-50 text-indigo-600 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Reader Mode
+                </button>
+                <button
+                  onClick={() => setViewMode('raw')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-md transition-all duration-200 cursor-pointer ${
+                    viewMode === 'raw'
+                      ? 'bg-indigo-50 text-indigo-600 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <FileText className="h-3 w-3" />
+                  Raw Text
+                </button>
               </div>
+            </div>
+
+            {/* Reader Mode: Highlights Block */}
+            {viewMode === 'reader' && (parsed.highlights.metrics.length > 0 || parsed.highlights.contacts.length > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {parsed.highlights.metrics.length > 0 && (
+                  <div className="bg-gradient-to-br from-violet-50/50 to-indigo-50/50 border border-indigo-100/50 rounded-xl p-3.5">
+                    <div className="flex items-center gap-1.5 text-indigo-600 font-semibold text-[10px] uppercase tracking-wider mb-2">
+                      <TrendingUp className="h-3 w-3" />
+                      Key Highlights
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsed.highlights.metrics.map((metric, idx) => (
+                        <span key={idx} className="bg-white/85 backdrop-blur-xs text-indigo-700 border border-indigo-100/60 text-xs font-semibold px-2 py-0.5 rounded-md shadow-xs">
+                          {metric}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {parsed.highlights.contacts.length > 0 && (
+                  <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/50 border border-emerald-100/50 rounded-xl p-3.5">
+                    <div className="flex items-center gap-1.5 text-emerald-600 font-semibold text-[10px] uppercase tracking-wider mb-2">
+                      <Mail className="h-3 w-3" />
+                      Filing Contacts
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {parsed.highlights.contacts.map((contact, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+                          {contact.includes('@') ? (
+                            <Mail className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <Phone className="h-3 w-3 text-emerald-500" />
+                          )}
+                          <span className="font-mono">{contact}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reader Mode: Collapsible Cover Letter Accordion */}
+            {viewMode === 'reader' && parsed.coverLetter && (
+              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs">
+                <button
+                  onClick={() => setCoverLetterOpen(!coverLetterOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50/50 hover:bg-gray-50 text-left transition-all cursor-pointer border-b border-gray-50"
+                >
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                    Exchange Cover Letter
+                  </span>
+                  {coverLetterOpen ? (
+                    <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                      <span>Collapse</span>
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                      <span>Expand</span>
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                </button>
+                {coverLetterOpen && (
+                  <div className="p-4 bg-white text-xs text-gray-600 leading-relaxed font-mono whitespace-pre-wrap">
+                    {parsed.coverLetter}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Main Content Area */}
+            <div>
+              {viewMode === 'reader' ? (
+                <div className="space-y-4">
+                  {parsed.blocks.length > 0 ? (
+                    parsed.blocks.map((block, idx) => {
+                      if (block.type === 'heading') {
+                        return (
+                          <h3
+                            key={idx}
+                            className="text-sm font-bold text-gray-800 mt-6 mb-2 leading-snug border-l-2 border-indigo-500 pl-2 uppercase tracking-wide"
+                          >
+                            {block.content as string}
+                          </h3>
+                        );
+                      }
+                      if (block.type === 'list') {
+                        return (
+                          <ul key={idx} className="list-disc pl-5 my-3 space-y-1.5">
+                            {(block.content as string[]).map((item, itemIdx) => (
+                              <li key={itemIdx} className="text-sm text-gray-600 leading-relaxed pl-0.5">
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      }
+                      if (block.type === 'table') {
+                        const rows = block.content as string[][];
+                        return (
+                          <div key={idx} className="overflow-x-auto border border-gray-150 rounded-xl my-4 shadow-xs max-w-full">
+                            <table className="min-w-full divide-y divide-gray-100 text-xs font-mono">
+                              <tbody className="divide-y divide-gray-100 bg-white">
+                                {rows.map((row, rowIdx) => (
+                                  <tr
+                                    key={rowIdx}
+                                    className={rowIdx === 0 ? 'bg-gray-50/70 font-semibold border-b border-gray-100' : rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
+                                  >
+                                    {row.map((cell, cellIdx) => (
+                                      <td
+                                        key={cellIdx}
+                                        className="px-4 py-2.5 text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap"
+                                      >
+                                        {cell}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      }
+                      // Paragraph
+                      return (
+                        <p
+                          key={idx}
+                          className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap max-w-none"
+                        >
+                          {block.content as string}
+                        </p>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">No detailed content to display.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-600 leading-relaxed font-mono whitespace-pre-wrap bg-gray-50 p-5 rounded-xl border border-gray-100 max-w-none">
+                  {article_cleaned || 'No details provided.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
