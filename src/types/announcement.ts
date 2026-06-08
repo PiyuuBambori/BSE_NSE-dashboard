@@ -105,6 +105,7 @@ export interface Announcement {
   tags: string[] | string | null;
   published_at: string;
   source: AnnouncementSource;
+  company_name?: string | null;
 }
 
 export interface DashboardFilters {

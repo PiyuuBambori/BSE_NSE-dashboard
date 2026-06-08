@@ -95,6 +95,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const matchesSearch =
         !state.filters.search ||
         announcement.headline.toLowerCase().includes(state.filters.search.toLowerCase()) ||
+        (announcement.company_name &&
+          announcement.company_name.toLowerCase().includes(state.filters.search.toLowerCase())) ||
         (typeof announcement.tags === 'string' &&
           announcement.tags.toLowerCase().includes(state.filters.search.toLowerCase())) ||
         (Array.isArray(announcement.tags) &&

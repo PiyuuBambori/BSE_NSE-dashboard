@@ -41,7 +41,7 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
 
   if (!announcement) return null;
 
-  const { source, headline, published_at, tags, article_cleaned, url } = announcement;
+  const { source, headline, published_at, tags, article_cleaned, url, company_name } = announcement;
   const displaySource = getDisplaySource(source);
   const colors = getSourceColors(source);
   const isExchange = displaySource === 'NSE' || displaySource === 'BSE';
@@ -114,11 +114,23 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
           <div className="space-y-5">
-            {/* Date */}
-            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 w-fit">
-              <Calendar className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="font-medium text-gray-600">Published:</span>
-              <span className="font-mono text-gray-500">{formatDate(published_at)}</span>
+            {/* Meta Info Row */}
+            <div className="flex flex-wrap gap-2.5">
+              {/* Date */}
+              <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 w-fit">
+                <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+                <span className="font-medium text-gray-600">Published:</span>
+                <span className="font-mono text-gray-500">{formatDate(published_at)}</span>
+              </div>
+
+              {/* Company */}
+              {company_name && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-indigo-50/50 px-3 py-2 rounded-lg border border-indigo-100/60 w-fit">
+                  <Landmark className="h-3.5 w-3.5 text-indigo-500" />
+                  <span className="font-semibold text-indigo-700">Company:</span>
+                  <span className="font-bold text-indigo-950 uppercase tracking-wider">{company_name}</span>
+                </div>
+              )}
             </div>
 
             {/* Headline */}

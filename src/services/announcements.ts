@@ -64,7 +64,7 @@ function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params
   if (params.search && params.search.trim() !== '') {
     const searchTerm = params.search.trim();
     if (tableName === 'bse_nse') {
-      query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%`);
+      query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%`);
     } else {
       query = query.or(`headline.ilike.%${searchTerm}%,article.ilike.%${searchTerm}%`);
     }

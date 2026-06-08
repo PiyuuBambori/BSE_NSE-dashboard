@@ -16,7 +16,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   viewMode = 'list',
   style,
 }) => {
-  const { source, headline, published_at } = announcement;
+  const { source, headline, published_at, company_name } = announcement;
   const displaySource = getDisplaySource(source);
   const colors = getSourceColors(source);
   const isExchange = displaySource === 'NSE' || displaySource === 'BSE';
@@ -52,6 +52,11 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             {formatDate(published_at)}
           </span>
         </div>
+        {company_name && (
+          <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1 line-clamp-1">
+            {company_name}
+          </div>
+        )}
         <p className="text-[13px] font-medium text-gray-700 line-clamp-2 group-hover:text-indigo-600 transition-colors leading-relaxed mb-3">
           {headline}
         </p>
@@ -82,9 +87,16 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${colors.letter} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 shadow-sm`}>
           {displaySource.charAt(0)}
         </div>
-        <span className="text-[13px] font-medium text-gray-700 line-clamp-1 group-hover:text-indigo-600 transition-colors">
-          {headline}
-        </span>
+        <div className="flex flex-col min-w-0">
+          {company_name && (
+            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-0.5 line-clamp-1">
+              {company_name}
+            </span>
+          )}
+          <span className="text-[13px] font-medium text-gray-700 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+            {headline}
+          </span>
+        </div>
       </div>
 
       {/* Source */}
