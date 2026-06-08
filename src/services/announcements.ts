@@ -41,7 +41,7 @@ function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params
   // 2. Date filtering
   const now = new Date();
   if (params.dateRange === 'Today') {
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     query = query.gte('published_at', startOfDay.toISOString());
   } else if (params.dateRange === '7d') {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -55,7 +55,7 @@ function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params
     }
     if (params.endDate) {
       const end = new Date(params.endDate);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
       query = query.lte('published_at', end.toISOString());
     }
   }
@@ -204,7 +204,7 @@ export const announcementsService = {
   async fetchStats(): Promise<DashboardStats> {
     try {
       const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
 
       // Query total NSE
       const nsePromise = supabase

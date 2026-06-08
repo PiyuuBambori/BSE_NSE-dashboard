@@ -28,6 +28,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         day: '2-digit',
         month: 'short',
         year: 'numeric',
+        timeZone: 'UTC',
       });
     } catch {
       return dateStr.substring(0, 10);

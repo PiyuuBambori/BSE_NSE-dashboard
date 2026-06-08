@@ -57,6 +57,7 @@ export const AnnouncementDrawer: React.FC<AnnouncementDrawerProps> = ({
         minute: '2-digit',
         second: '2-digit',
         hour12: true,
+        timeZone: 'UTC',
       });
     } catch {
       return dateStr;

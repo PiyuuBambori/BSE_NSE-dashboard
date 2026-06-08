@@ -117,20 +117,27 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const pubDate = new Date(announcement.published_at);
       const now = new Date();
 
+      const isToday = 
+        pubDate.getUTCDate() === now.getUTCDate() &&
+        pubDate.getUTCMonth() === now.getUTCMonth() &&
+        pubDate.getUTCFullYear() === now.getUTCFullYear();
+
       if (state.filters.dateRange === 'Today') {
-        matchesDate = pubDate.toDateString() === now.toDateString();
+        matchesDate = isToday;
       } else if (state.filters.dateRange === '7d') {
         matchesDate = pubDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       } else if (state.filters.dateRange === '30d') {
         matchesDate = pubDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       } else if (state.filters.dateRange === 'custom') {
         if (state.filters.startDate) matchesDate = pubDate >= new Date(state.filters.startDate);
-        if (state.filters.endDate) matchesDate = matchesDate && pubDate <= new Date(state.filters.endDate);
+        if (state.filters.endDate) {
+          const end = new Date(state.filters.endDate);
+          end.setUTCHours(23, 59, 59, 999);
+          matchesDate = matchesDate && pubDate <= end;
+        }
       }
 
       const shouldAddToFeed = state.filters.page === 1 && matchesSource && matchesSearch && matchesTags && matchesDate;
-
-      const isToday = pubDate.toDateString() === now.toDateString();
       const displaySource = getDisplaySource(announcement.source);
       const isExchange = displaySource === 'NSE' || displaySource === 'BSE';
 
