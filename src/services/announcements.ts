@@ -17,6 +17,62 @@ function resolveSourceValues(filter: SourceFilter): string[] | null {
   return dbValues || [filter]; // fallback to using the filter value directly
 }
 
+/**
+ * Helper to apply shared filters to a query for a specific table
+ */
+function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params: FetchAnnouncementsParams) {
+  // 1. Source filter
+  const sourceValues = resolveSourceValues(params.source);
+  if (sourceValues) {
+    const validSources = tableName === 'bse_nse'
+      ? ['NSE', 'BSE']
+      : ['CNBC TV18', 'Livemint', 'NDTV Profit', 'Financial Express', 'Business Today', 'Business Standard', 'Economic Times', 'Economic Times Mobile', 'Hindu BusinessLine'];
+    const tableSourceValues = sourceValues.filter(v => validSources.includes(v));
+    
+    if (tableSourceValues.length === 0) {
+      query = query.eq('source', 'NON_EXISTENT_SOURCE_PLACEHOLDER');
+    } else if (tableSourceValues.length === 1) {
+      query = query.eq('source', tableSourceValues[0]);
+    } else {
+      query = query.in('source', tableSourceValues);
+    }
+  }
+
+  // 2. Date filtering
+  const now = new Date();
+  if (params.dateRange === 'Today') {
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    query = query.gte('published_at', startOfDay.toISOString());
+  } else if (params.dateRange === '7d') {
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    query = query.gte('published_at', sevenDaysAgo.toISOString());
+  } else if (params.dateRange === '30d') {
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    query = query.gte('published_at', thirtyDaysAgo.toISOString());
+  } else if (params.dateRange === 'custom') {
+    if (params.startDate) {
+      query = query.gte('published_at', new Date(params.startDate).toISOString());
+    }
+    if (params.endDate) {
+      const end = new Date(params.endDate);
+      end.setHours(23, 59, 59, 999);
+      query = query.lte('published_at', end.toISOString());
+    }
+  }
+
+  // 3. Search filter
+  if (params.search && params.search.trim() !== '') {
+    const searchTerm = params.search.trim();
+    if (tableName === 'bse_nse') {
+      query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%`);
+    } else {
+      query = query.or(`headline.ilike.%${searchTerm}%,article.ilike.%${searchTerm}%`);
+    }
+  }
+
+  return query;
+}
+
 export const announcementsService = {
   /**
    * Fetches announcements from Supabase with server-side filtering, sorting, and pagination
@@ -27,75 +83,115 @@ export const announcementsService = {
     totalCount: number;
   }> {
     try {
-      let query = supabase
-        .from('corporate_announcements')
-        .select('*', { count: 'exact' });
+      const isExchange = params.source === 'NSE' || params.source === 'BSE';
+      const isNews = params.source !== 'All' && !isExchange;
 
-      // 1. Source filter
-      const sourceValues = resolveSourceValues(params.source);
-      if (sourceValues) {
-        if (sourceValues.length === 1) {
-          query = query.eq('source', sourceValues[0]);
-        } else {
-          query = query.in('source', sourceValues);
-        }
+      if (isExchange) {
+        // Query only bse_nse table
+        let countQuery = supabase.from('bse_nse').select('*', { count: 'exact', head: true });
+        countQuery = applyFilters(countQuery, 'bse_nse', params);
+
+        let dataQuery = supabase.from('bse_nse').select('*');
+        dataQuery = applyFilters(dataQuery, 'bse_nse', params)
+          .order('published_at', { ascending: false })
+          .range(params.offset, params.offset + params.limit - 1);
+
+        const [countRes, dataRes] = await Promise.all([countQuery, dataQuery]);
+        if (countRes.error) throw countRes.error;
+        if (dataRes.error) throw dataRes.error;
+
+        const announcements = (dataRes.data || []) as Announcement[];
+        const totalCount = countRes.count || 0;
+        const hasMore = params.offset + announcements.length < totalCount;
+
+        return { data: announcements, hasMore, totalCount };
       }
 
-      // 2. Date filtering
-      const now = new Date();
-      if (params.dateRange === 'Today') {
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        query = query.gte('published_at', startOfDay.toISOString());
-      } else if (params.dateRange === '7d') {
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        query = query.gte('published_at', sevenDaysAgo.toISOString());
-      } else if (params.dateRange === '30d') {
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        query = query.gte('published_at', thirtyDaysAgo.toISOString());
-      } else if (params.dateRange === 'custom') {
-        if (params.startDate) {
-          query = query.gte('published_at', new Date(params.startDate).toISOString());
-        }
-        if (params.endDate) {
-          const end = new Date(params.endDate);
-          end.setHours(23, 59, 59, 999);
-          query = query.lte('published_at', end.toISOString());
-        }
-      }
-      // If params.dateRange === 'All', we don't apply any published_at constraint
+      if (isNews) {
+        // Query only news_channels table
+        let countQuery = supabase.from('news_channels').select('*', { count: 'exact', head: true });
+        countQuery = applyFilters(countQuery, 'news_channels', params);
 
-      // 3. Search filter
-      if (params.search && params.search.trim() !== '') {
-        const searchTerm = params.search.trim();
-        query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%`);
-      }
+        let dataQuery = supabase.from('news_channels').select('*');
+        dataQuery = applyFilters(dataQuery, 'news_channels', params)
+          .order('published_at', { ascending: false })
+          .range(params.offset, params.offset + params.limit - 1);
 
-      // 4. Tags filter
-      if (params.selectedTags && params.selectedTags.length > 0) {
-        try {
-          query = query.contains('tags', params.selectedTags);
-        } catch (e) {
-          console.warn('Tags contains query failed, falling back to text-based matching', e);
-          params.selectedTags.forEach((tag) => {
-            query = query.ilike('tags', `%${tag}%`);
-          });
-        }
+        const [countRes, dataRes] = await Promise.all([countQuery, dataQuery]);
+        if (countRes.error) throw countRes.error;
+        if (dataRes.error) throw dataRes.error;
+
+        const announcements = (dataRes.data || []).map(row => ({
+          id: row.id,
+          headline: row.headline,
+          article_cleaned: row.article || '',
+          url: row.url,
+          tags: null,
+          published_at: row.published_at,
+          source: row.source
+        })) as Announcement[];
+        const totalCount = countRes.count || 0;
+        const hasMore = params.offset + announcements.length < totalCount;
+
+        return { data: announcements, hasMore, totalCount };
       }
 
-      // 5. Pagination and sorting
-      query = query
+      // If source filter is 'All'
+      let bseNseCountQuery = supabase.from('bse_nse').select('*', { count: 'exact', head: true });
+      bseNseCountQuery = applyFilters(bseNseCountQuery, 'bse_nse', params);
+
+      let newsCountQuery = supabase.from('news_channels').select('*', { count: 'exact', head: true });
+      newsCountQuery = applyFilters(newsCountQuery, 'news_channels', params);
+
+      const [bseNseCountRes, newsCountRes] = await Promise.all([
+        bseNseCountQuery,
+        newsCountQuery
+      ]);
+
+      if (bseNseCountRes.error) throw bseNseCountRes.error;
+      if (newsCountRes.error) throw newsCountRes.error;
+
+      const totalCount = (bseNseCountRes.count || 0) + (newsCountRes.count || 0);
+
+      // Fetch offset + limit from both tables, merge, sort, and slice
+      const fetchLimit = params.offset + params.limit;
+
+      let bseNseDataQuery = supabase.from('bse_nse').select('*');
+      bseNseDataQuery = applyFilters(bseNseDataQuery, 'bse_nse', params)
         .order('published_at', { ascending: false })
-        .range(params.offset, params.offset + params.limit - 1);
+        .range(0, fetchLimit - 1);
 
-      const { data, count, error } = await query;
+      let newsDataQuery = supabase.from('news_channels').select('*');
+      newsDataQuery = applyFilters(newsDataQuery, 'news_channels', params)
+        .order('published_at', { ascending: false })
+        .range(0, fetchLimit - 1);
 
-      if (error) throw error;
+      const [bseNseDataRes, newsDataRes] = await Promise.all([
+        bseNseDataQuery,
+        newsDataQuery
+      ]);
 
-      const announcements = (data || []) as Announcement[];
-      const totalCount = count || 0;
-      const hasMore = params.offset + announcements.length < totalCount;
+      if (bseNseDataRes.error) throw bseNseDataRes.error;
+      if (newsDataRes.error) throw newsDataRes.error;
 
-      return { data: announcements, hasMore, totalCount };
+      const bseNseItems = (bseNseDataRes.data || []) as Announcement[];
+      const newsItems = (newsDataRes.data || []).map(row => ({
+        id: row.id,
+        headline: row.headline,
+        article_cleaned: row.article || '',
+        url: row.url,
+        tags: null,
+        published_at: row.published_at,
+        source: row.source
+      })) as Announcement[];
+
+      const combined = [...bseNseItems, ...newsItems]
+        .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+        .slice(params.offset, params.offset + params.limit);
+
+      const hasMore = params.offset + combined.length < totalCount;
+
+      return { data: combined, hasMore, totalCount };
     } catch (error) {
       console.error('Error fetching announcements:', error);
       throw error;
@@ -112,45 +208,52 @@ export const announcementsService = {
 
       // Query total NSE
       const nsePromise = supabase
-        .from('corporate_announcements')
+        .from('bse_nse')
         .select('*', { count: 'exact', head: true })
         .eq('source', 'NSE');
 
       // Query total BSE
       const bsePromise = supabase
-        .from('corporate_announcements')
+        .from('bse_nse')
         .select('*', { count: 'exact', head: true })
         .eq('source', 'BSE');
 
-      // Query total news (everything that is NOT NSE or BSE)
+      // Query total news (all of news_channels)
       const newsPromise = supabase
-        .from('corporate_announcements')
-        .select('*', { count: 'exact', head: true })
-        .not('source', 'in', '("NSE","BSE")');
+        .from('news_channels')
+        .select('*', { count: 'exact', head: true });
 
-      // Query total today (all sources)
-      const todayPromise = supabase
-        .from('corporate_announcements')
+      // Query total today from bse_nse
+      const todayBseNsePromise = supabase
+        .from('bse_nse')
         .select('*', { count: 'exact', head: true })
         .gte('published_at', startOfDay);
 
-      const [nseRes, bseRes, newsRes, todayRes] = await Promise.all([
+      // Query total today from news_channels
+      const todayNewsPromise = supabase
+        .from('news_channels')
+        .select('*', { count: 'exact', head: true })
+        .gte('published_at', startOfDay);
+
+      const [nseRes, bseRes, newsRes, todayBseNseRes, todayNewsRes] = await Promise.all([
         nsePromise,
         bsePromise,
         newsPromise,
-        todayPromise,
+        todayBseNsePromise,
+        todayNewsPromise,
       ]);
 
       if (nseRes.error) throw nseRes.error;
       if (bseRes.error) throw bseRes.error;
       if (newsRes.error) throw newsRes.error;
-      if (todayRes.error) throw todayRes.error;
+      if (todayBseNseRes.error) throw todayBseNseRes.error;
+      if (todayNewsRes.error) throw todayNewsRes.error;
 
       return {
         totalNse: nseRes.count || 0,
         totalBse: bseRes.count || 0,
         totalNews: newsRes.count || 0,
-        totalToday: todayRes.count || 0,
+        totalToday: (todayBseNseRes.count || 0) + (todayNewsRes.count || 0),
         lastUpdate: new Date().toLocaleTimeString(),
       };
     } catch (error) {

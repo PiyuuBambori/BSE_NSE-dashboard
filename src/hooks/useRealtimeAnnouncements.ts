@@ -23,16 +23,42 @@ export const useRealtimeAnnouncements = (
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'corporate_announcements',
+          table: 'bse_nse',
         },
         (payload) => {
           const newRow = payload.new as Announcement;
 
-          // Accept all sources — the store handles filter matching
           if (newRow && newRow.source && newRow.headline) {
             addRealtimeAnnouncement(newRow);
             if (onNewAnnouncementRef.current) {
               onNewAnnouncementRef.current(newRow);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'news_channels',
+        },
+        (payload) => {
+          const newRow = payload.new as any;
+
+          if (newRow && newRow.source && newRow.headline) {
+            const mappedRow: Announcement = {
+              id: newRow.id,
+              headline: newRow.headline,
+              article_cleaned: newRow.article || '',
+              url: newRow.url,
+              tags: null,
+              published_at: newRow.published_at,
+              source: newRow.source,
+            };
+            addRealtimeAnnouncement(mappedRow);
+            if (onNewAnnouncementRef.current) {
+              onNewAnnouncementRef.current(mappedRow);
             }
           }
         }
