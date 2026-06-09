@@ -39,10 +39,12 @@ const initialFilters: DashboardFilters = {
 };
 
 const initialStats: DashboardStats = {
+  nseToday: 0,
+  bseToday: 0,
+  newsToday: 0,
   totalNse: 0,
   totalBse: 0,
   totalNews: 0,
-  totalToday: 0,
   lastUpdate: null,
 };
 
@@ -143,10 +145,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
       const updatedStats: DashboardStats = {
         ...state.stats,
+        nseToday: (displaySource === 'NSE' && isToday) ? state.stats.nseToday + 1 : state.stats.nseToday,
+        bseToday: (displaySource === 'BSE' && isToday) ? state.stats.bseToday + 1 : state.stats.bseToday,
+        newsToday: (!isExchange && isToday) ? state.stats.newsToday + 1 : state.stats.newsToday,
         totalNse: displaySource === 'NSE' ? state.stats.totalNse + 1 : state.stats.totalNse,
         totalBse: displaySource === 'BSE' ? state.stats.totalBse + 1 : state.stats.totalBse,
         totalNews: !isExchange ? state.stats.totalNews + 1 : state.stats.totalNews,
-        totalToday: isToday ? state.stats.totalToday + 1 : state.stats.totalToday,
         lastUpdate: new Date().toLocaleTimeString(),
       };
 

@@ -207,62 +207,76 @@ export const announcementsService = {
       const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
 
       // Query total NSE
-      const nsePromise = supabase
+      const nseTotalPromise = supabase
         .from('bse_nse')
         .select('*', { count: 'exact', head: true })
         .eq('source', 'NSE');
 
       // Query total BSE
-      const bsePromise = supabase
+      const bseTotalPromise = supabase
         .from('bse_nse')
         .select('*', { count: 'exact', head: true })
         .eq('source', 'BSE');
 
       // Query total news (all of news_channels)
-      const newsPromise = supabase
+      const newsTotalPromise = supabase
         .from('news_channels')
         .select('*', { count: 'exact', head: true });
 
-      // Query total today from bse_nse
-      const todayBseNsePromise = supabase
+      // Query daily NSE filings
+      const nseTodayPromise = supabase
         .from('bse_nse')
         .select('*', { count: 'exact', head: true })
+        .eq('source', 'NSE')
         .gte('published_at', startOfDay);
 
-      // Query total today from news_channels
-      const todayNewsPromise = supabase
+      // Query daily BSE filings
+      const bseTodayPromise = supabase
+        .from('bse_nse')
+        .select('*', { count: 'exact', head: true })
+        .eq('source', 'BSE')
+        .gte('published_at', startOfDay);
+
+      // Query daily news
+      const newsTodayPromise = supabase
         .from('news_channels')
         .select('*', { count: 'exact', head: true })
         .gte('published_at', startOfDay);
 
-      const [nseRes, bseRes, newsRes, todayBseNseRes, todayNewsRes] = await Promise.all([
-        nsePromise,
-        bsePromise,
-        newsPromise,
-        todayBseNsePromise,
-        todayNewsPromise,
+      const [nseTotalRes, bseTotalRes, newsTotalRes, nseTodayRes, bseTodayRes, newsTodayRes] = await Promise.all([
+        nseTotalPromise,
+        bseTotalPromise,
+        newsTotalPromise,
+        nseTodayPromise,
+        bseTodayPromise,
+        newsTodayPromise,
       ]);
 
-      if (nseRes.error) throw nseRes.error;
-      if (bseRes.error) throw bseRes.error;
-      if (newsRes.error) throw newsRes.error;
-      if (todayBseNseRes.error) throw todayBseNseRes.error;
-      if (todayNewsRes.error) throw todayNewsRes.error;
+      if (nseTotalRes.error) throw nseTotalRes.error;
+      if (bseTotalRes.error) throw bseTotalRes.error;
+      if (newsTotalRes.error) throw newsTotalRes.error;
+      if (nseTodayRes.error) throw nseTodayRes.error;
+      if (bseTodayRes.error) throw bseTodayRes.error;
+      if (newsTodayRes.error) throw newsTodayRes.error;
 
       return {
-        totalNse: nseRes.count || 0,
-        totalBse: bseRes.count || 0,
-        totalNews: newsRes.count || 0,
-        totalToday: (todayBseNseRes.count || 0) + (todayNewsRes.count || 0),
+        nseToday: nseTodayRes.count || 0,
+        bseToday: bseTodayRes.count || 0,
+        newsToday: newsTodayRes.count || 0,
+        totalNse: nseTotalRes.count || 0,
+        totalBse: bseTotalRes.count || 0,
+        totalNews: newsTotalRes.count || 0,
         lastUpdate: new Date().toLocaleTimeString(),
       };
     } catch (error) {
       console.error('Error fetching stats:', error);
       return {
+        nseToday: 0,
+        bseToday: 0,
+        newsToday: 0,
         totalNse: 0,
         totalBse: 0,
         totalNews: 0,
-        totalToday: 0,
         lastUpdate: new Date().toLocaleTimeString() + ' (Error loading counts)',
       };
     }

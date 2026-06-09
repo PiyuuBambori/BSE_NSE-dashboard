@@ -119,9 +119,11 @@ export interface DashboardFilters {
 }
 
 export interface DashboardStats {
+  nseToday: number;
+  bseToday: number;
+  newsToday: number;
   totalNse: number;
   totalBse: number;
   totalNews: number;
-  totalToday: number;
   lastUpdate: string | null;
 }

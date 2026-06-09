@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboardStore } from '../store/dashboardStore';
-import { Landmark, Calendar, Clock, RefreshCw, ArrowUpRight, Activity, Newspaper } from 'lucide-react';
+import { Landmark, Clock, RefreshCw, ArrowUpRight, Activity, Newspaper } from 'lucide-react';
 
 interface StatsCardsProps {
   onRefresh: () => void;
@@ -16,44 +16,44 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ onRefresh, isRefreshing 
 
   const cards = [
     {
-      label: 'NSE Filings',
-      value: formatNumber(stats.totalNse),
+      label: "Today's NSE Filings",
+      value: formatNumber(stats.nseToday),
       icon: <Landmark className="h-4 w-4" />,
-      change: '+12.5%',
-      subtitle: 'vs last week',
+      change: 'Daily',
+      subtitle: 'NSE filings today',
       accent: 'from-violet-500 to-purple-600',
       iconBg: 'bg-violet-50 text-violet-500',
       changeBg: 'bg-violet-50 text-violet-600',
     },
     {
-      label: 'BSE Filings',
-      value: formatNumber(stats.totalBse),
+      label: "Today's BSE Filings",
+      value: formatNumber(stats.bseToday),
       icon: <Landmark className="h-4 w-4" />,
-      change: '+8.3%',
-      subtitle: 'vs last week',
+      change: 'Daily',
+      subtitle: 'BSE filings today',
       accent: 'from-blue-500 to-cyan-600',
       iconBg: 'bg-blue-50 text-blue-500',
       changeBg: 'bg-blue-50 text-blue-600',
     },
     {
-      label: 'News Articles',
-      value: formatNumber(stats.totalNews),
+      label: "Today's News Articles",
+      value: formatNumber(stats.newsToday),
       icon: <Newspaper className="h-4 w-4" />,
       change: 'Live',
-      subtitle: '9 channels',
-      accent: 'from-sky-500 to-indigo-600',
-      iconBg: 'bg-sky-50 text-sky-500',
-      changeBg: 'bg-sky-50 text-sky-600',
-    },
-    {
-      label: "Today's Count",
-      value: formatNumber(stats.totalToday),
-      icon: <Calendar className="h-4 w-4" />,
-      change: 'Live',
-      subtitle: 'auto-updating',
+      subtitle: 'News articles today',
       accent: 'from-emerald-500 to-teal-600',
       iconBg: 'bg-emerald-50 text-emerald-500',
       changeBg: 'bg-emerald-50 text-emerald-600',
+    },
+    {
+      label: 'Grand Total',
+      value: formatNumber(stats.totalNse + stats.totalBse + stats.totalNews),
+      icon: <Newspaper className="h-4 w-4" />,
+      change: 'All-time',
+      subtitle: `${formatNumber(stats.totalNse + stats.totalBse)} filings • ${formatNumber(stats.totalNews)} news`,
+      accent: 'from-indigo-500 to-purple-600',
+      iconBg: 'bg-indigo-50 text-indigo-500',
+      changeBg: 'bg-indigo-50 text-indigo-600',
     },
     {
       label: 'Last Synced',
