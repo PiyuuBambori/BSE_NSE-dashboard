@@ -5,6 +5,7 @@ import { SOURCE_DB_MAP } from '../types/announcement';
 export interface FetchAnnouncementsParams extends DashboardFilters {
   limit: number;
   offset: number;
+  companyNames?: string[] | null;
 }
 
 /**
@@ -38,6 +39,9 @@ function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params
     }
   }
 
+  // Note: Company names filtering for market cap is now handled client-side
+  // in StreamColumn.tsx using normalized name matching against company_financials.json
+
   // 2. Date filtering
   const now = new Date();
   if (params.dateRange === 'Today') {
@@ -62,11 +66,22 @@ function applyFilters(query: any, tableName: 'bse_nse' | 'news_channels', params
 
   // 3. Search filter
   if (params.search && params.search.trim() !== '') {
-    const searchTerm = params.search.trim();
-    if (tableName === 'bse_nse') {
-      query = query.or(`headline.ilike.%${searchTerm}%,article_cleaned.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%`);
-    } else {
-      query = query.or(`headline.ilike.%${searchTerm}%,article.ilike.%${searchTerm}%`);
+    const searchTerms = params.search.trim().split(/\s+/).filter(Boolean);
+    if (searchTerms.length > 0) {
+      const clauses: string[] = [];
+      searchTerms.forEach(term => {
+        const cleanTerm = term.replace(/[,()]/g, '').trim();
+        if (cleanTerm) {
+          if (tableName === 'bse_nse') {
+            clauses.push(`headline.ilike.%${cleanTerm}%,article_cleaned.ilike.%${cleanTerm}%,company_name.ilike.%${cleanTerm}%`);
+          } else {
+            clauses.push(`headline.ilike.%${cleanTerm}%,article.ilike.%${cleanTerm}%`);
+          }
+        }
+      });
+      if (clauses.length > 0) {
+        query = query.or(clauses.join(','));
+      }
     }
   }
 
