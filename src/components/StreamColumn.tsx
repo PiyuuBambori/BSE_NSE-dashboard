@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Settings, Trash2, ArrowLeft, ArrowRight, Edit, Cpu, Landmark, Globe, Newspaper, Factory, Building2, Zap, HeartPulse, Car, Pickaxe, FlaskConical, Wheat, Shirt, ShoppingBag, Radio } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, Settings, Trash2, ArrowLeft, ArrowRight, Edit, Cpu, Landmark, Globe, Newspaper } from 'lucide-react';
 import type { Announcement } from '../types/announcement';
 import { announcementsService } from '../services/announcements';
 import AnnouncementCard from './AnnouncementCard';
 import { getMarketCapCompanySet, isCompanyInMarketCapSet } from '../lib/financialHelpers';
-import { getSectorNames, getSubsectorNames, getSectorCompanySet, isCompanyInSectorSet } from '../lib/sectorHelpers';
 import financialsData from '../../company_financials.json';
 
 interface StreamColumnProps {
@@ -21,28 +20,10 @@ interface StreamColumnProps {
   onRename: (newName: string) => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
-  dropdownType?: 'sectors' | 'marketcap' | 'source';
+  dropdownType?: 'sectors' | 'marketcap';
   currentDropdownValue?: string;
-  currentSubsectorValue?: string;
   onDropdownChange?: (val: string) => void;
-  onSubsectorChange?: (val: string) => void;
 }
-
-// Sector icon mapping for visual variety
-const SECTOR_ICONS: Record<string, React.ReactNode> = {
-  'Automobile & Ancillaries': <Car className="h-4.5 w-4.5 text-blue-500" />,
-  'Capital Goods': <Factory className="h-4.5 w-4.5 text-orange-500" />,
-  'Construction Materials': <Building2 className="h-4.5 w-4.5 text-amber-600" />,
-  'Power': <Zap className="h-4.5 w-4.5 text-yellow-500" />,
-  'Healthcare': <HeartPulse className="h-4.5 w-4.5 text-rose-500" />,
-  'Crude Oil': <FlaskConical className="h-4.5 w-4.5 text-gray-600" />,
-  'Iron & Steel': <Pickaxe className="h-4.5 w-4.5 text-slate-500" />,
-  'Agriculture': <Wheat className="h-4.5 w-4.5 text-green-600" />,
-  'Textile': <Shirt className="h-4.5 w-4.5 text-purple-500" />,
-  'Consumer Durables': <ShoppingBag className="h-4.5 w-4.5 text-pink-500" />,
-  'Information Technology': <Cpu className="h-4.5 w-4.5 text-emerald-500" />,
-  'Financial Services': <Landmark className="h-4.5 w-4.5 text-amber-500" />,
-};
 
 export const StreamColumn: React.FC<StreamColumnProps> = ({
   id,
@@ -56,9 +37,7 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
   onMoveRight,
   dropdownType,
   currentDropdownValue,
-  currentSubsectorValue,
   onDropdownChange,
-  onSubsectorChange,
 }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,33 +46,15 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(name);
 
-  // Get sector/subsector lists from the mapping JSON
-  const sectorNames = useMemo(() => getSectorNames(), []);
-  const subsectorNames = useMemo(
-    () => (currentDropdownValue ? getSubsectorNames(currentDropdownValue) : []),
-    [currentDropdownValue]
-  );
-
-  // Pick header icon based on sector or stream name
+  // Pick header icon based on name or selected dropdown value
   const getHeaderIcon = () => {
-    if (dropdownType === 'sectors' && currentDropdownValue) {
-      const icon = SECTOR_ICONS[currentDropdownValue];
-      if (icon) return icon;
-    }
-    if (dropdownType === 'source') {
-      return <Radio className="h-4.5 w-4.5 text-violet-500" />;
-    }
-    
     const n = name.toLowerCase();
     const val = (currentDropdownValue || '').toLowerCase();
     
-    if (n.includes('broadcast') || n.includes('source')) {
-      return <Radio className="h-4.5 w-4.5 text-violet-500" />;
-    }
-    if (n.includes('tech') || n.includes('software') || n.includes('cloud') || val.includes('tech') || val.includes('information')) {
+    if (n.includes('tech') || n.includes('software') || n.includes('cloud') || val.includes('tech')) {
       return <Cpu className="h-4.5 w-4.5 text-emerald-500" />;
     }
-    if (n.includes('finance') || n.includes('bank') || n.includes('rate') || val.includes('finance') || val.includes('banking')) {
+    if (n.includes('finance') || n.includes('bank') || n.includes('rate') || val.includes('finance')) {
       return <Landmark className="h-4.5 w-4.5 text-amber-500" />;
     }
     if (n.includes('large') || n.includes('cap') || n.includes('globe') || val.includes('large')) {
@@ -106,41 +67,18 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
     setLoading(true);
     setError(null);
     try {
-      if (dropdownType === 'sectors' && currentDropdownValue && currentDropdownValue !== 'All') {
-        // SECTOR STREAM: Fetch announcements from DB, then filter client-side by company set
-        const companySet = getSectorCompanySet(
-          currentDropdownValue,
-          currentSubsectorValue && currentSubsectorValue !== 'All' ? currentSubsectorValue : undefined
-        );
-
-        // Fetch a large batch of recent announcements
-        const result = await announcementsService.fetchAnnouncements({
-          search: globalSearch.trim(),
-          source: 'All' as any,
-          dateRange: 'All' as const,
-          startDate: null,
-          endDate: null,
-          selectedTags: [],
-          page: 1,
-          limit: 200,
-          offset: 0,
-        });
-
-        // Client-side filter: keep only announcements whose company_name is in the sector set
-        const filtered = result.data.filter(ann =>
-          ann.company_name && isCompanyInSectorSet(ann.company_name, companySet)
-        );
-
-        setAnnouncements(filtered.slice(0, 30));
-      } else if (dropdownType === 'marketcap' && currentDropdownValue) {
+      if (dropdownType === 'marketcap' && currentDropdownValue) {
         // MARKET CAP STREAM: Fetch announcements from DB, then filter client-side
+        // This avoids name mismatch issues (DB has "Bharti Airtel Ltd" but financials has "Bharti Airtel Ltd.")
         let val = currentDropdownValue;
         if (val === 'large') val = 'gt_100k';
         else if (val === 'mid') val = '2k_5k';
         else if (val === 'small') val = 'lt_200';
 
+        // Build a normalized set of companies in the selected market cap range
         const companySet = getMarketCapCompanySet(financialsData as any, val);
 
+        // Fetch a large batch of recent announcements (BSE/NSE only, no company filter)
         const result = await announcementsService.fetchAnnouncements({
           search: globalSearch.trim(),
           source: 'All' as any,
@@ -153,22 +91,19 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
           offset: 0,
         });
 
+        // Client-side filter: keep only announcements whose company_name is in the market cap range
         const filtered = result.data.filter(ann =>
           ann.company_name && isCompanyInMarketCapSet(ann.company_name, companySet)
         );
 
         setAnnouncements(filtered.slice(0, 25));
       } else {
-        // NORMAL & SOURCE STREAMS: Use search-based filtering at the Supabase level
+        // NORMAL STREAMS: Use search-based filtering at the Supabase level
         const searchTerms = [filter.search, globalSearch].filter(Boolean).join(' ').trim();
-        // For 'source' dropdown, use the selected source value; otherwise use the filter's source
-        const sourceValue = (dropdownType === 'source' && currentDropdownValue)
-          ? currentDropdownValue
-          : (filter.source || 'All');
 
         const result = await announcementsService.fetchAnnouncements({
           search: searchTerms,
-          source: sourceValue as any,
+          source: (filter.source || 'All') as any,
           dateRange: 'All' as const,
           startDate: null,
           endDate: null,
@@ -191,7 +126,7 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [filter.search, filter.source, filter.tags, globalSearch, name, currentDropdownValue, currentSubsectorValue]);
+  }, [filter.search, filter.source, filter.tags, globalSearch, name, currentDropdownValue]);
 
   const handleRenameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,32 +245,19 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
           </div>
         </div>
 
-        {/* Dropdowns for Sectors filter — Sector + Subsector */}
+        {/* Dropdowns for Sectors or Market Cap filter configurations */}
         {dropdownType === 'sectors' && onDropdownChange && (
-          <div className="flex flex-col gap-1.5">
-            <select
-              value={currentDropdownValue}
-              onChange={(e) => onDropdownChange(e.target.value)}
-              className="w-full bg-[#EFF2F5] border border-transparent rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200/60 focus:outline-none focus:bg-white focus:border-indigo-400 cursor-pointer transition-all"
-            >
-              <option value="All">All Sectors</option>
-              {sectorNames.map((sector) => (
-                <option key={sector} value={sector}>{sector}</option>
-              ))}
-            </select>
-            {currentDropdownValue !== 'All' && subsectorNames.length > 0 && onSubsectorChange && (
-              <select
-                value={currentSubsectorValue || 'All'}
-                onChange={(e) => onSubsectorChange(e.target.value)}
-                className="w-full bg-[#EFF2F5] border border-transparent rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-gray-500 hover:bg-gray-200/60 focus:outline-none focus:bg-white focus:border-indigo-400 cursor-pointer transition-all"
-              >
-                <option value="All">All Subsectors</option>
-                {subsectorNames.map((sub) => (
-                  <option key={sub} value={sub}>{sub}</option>
-                ))}
-              </select>
-            )}
-          </div>
+          <select
+            value={currentDropdownValue}
+            onChange={(e) => onDropdownChange(e.target.value)}
+            className="w-full bg-[#EFF2F5] border border-transparent rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200/60 focus:outline-none focus:bg-white focus:border-indigo-400 cursor-pointer transition-all"
+          >
+            <option value="tech">Technology Sector</option>
+            <option value="finance">Finance & Banking</option>
+            <option value="energy">Energy & Utilities</option>
+            <option value="healthcare">Healthcare & Pharma</option>
+            <option value="automobile">Automobile Sector</option>
+          </select>
         )}
 
         {dropdownType === 'marketcap' && onDropdownChange && (
@@ -352,30 +274,6 @@ export const StreamColumn: React.FC<StreamColumnProps> = ({
             <option value="2k_5k">₹2,000 Cr - ₹5,000 Cr</option>
             <option value="200_2k">₹200 Cr - ₹2,000 Cr</option>
             <option value="lt_200">Less than ₹200 Cr</option>
-          </select>
-        )}
-
-        {dropdownType === 'source' && onDropdownChange && (
-          <select
-            value={currentDropdownValue || 'All'}
-            onChange={(e) => onDropdownChange(e.target.value)}
-            className="w-full bg-[#EFF2F5] border border-transparent rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200/60 focus:outline-none focus:bg-white focus:border-indigo-400 cursor-pointer transition-all"
-          >
-            <option value="All">All Sources</option>
-            <optgroup label="Exchange Filings">
-              <option value="NSE">NSE</option>
-              <option value="BSE">BSE</option>
-            </optgroup>
-            <optgroup label="News Channels">
-              <option value="CNBC TV18">CNBC TV18</option>
-              <option value="Livemint">Livemint</option>
-              <option value="NDTV Profit">NDTV Profit</option>
-              <option value="Financial Express">Financial Express</option>
-              <option value="Business Today">Business Today</option>
-              <option value="Business Standard">Business Standard</option>
-              <option value="Economic Times">Economic Times</option>
-              <option value="Hindu BusinessLine">Hindu BusinessLine</option>
-            </optgroup>
           </select>
         )}
 
