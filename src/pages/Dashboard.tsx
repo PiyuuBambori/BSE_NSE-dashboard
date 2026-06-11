@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDashboardStore } from '../store/dashboardStore';
 import { useRealtimeAnnouncements } from '../hooks/useRealtimeAnnouncements';
+import { announcementsService } from '../services/announcements';
 import type { Announcement } from '../types/announcement';
 import { SOURCE_COLORS, getDisplaySource } from '../types/announcement';
 
@@ -19,6 +20,7 @@ interface ToastNotification {
   announcement: Announcement;
 }
 
+
 interface StreamConfig {
   id: string;
   name: string;
@@ -27,8 +29,9 @@ interface StreamConfig {
     source: string;
     tags: string[];
   };
-  dropdownType?: 'sectors' | 'marketcap';
+  dropdownType?: 'sectors' | 'marketcap' | 'source';
   currentDropdownValue?: string;
+  currentSubsectorValue?: string;
 }
 
 const DEFAULT_STREAMS: StreamConfig[] = [
@@ -36,12 +39,13 @@ const DEFAULT_STREAMS: StreamConfig[] = [
     id: 'stream-sectors',
     name: 'Sectors',
     filter: {
-      search: 'tech software IT digital computer TCS Infosys Wipro HCL TechM LTIMindtree semiconductor',
+      search: '',
       source: 'All',
       tags: [],
     },
     dropdownType: 'sectors',
-    currentDropdownValue: 'tech',
+    currentDropdownValue: 'All',
+    currentSubsectorValue: 'All',
   },
   {
     id: 'stream-marketcap',
@@ -71,6 +75,8 @@ const DEFAULT_STREAMS: StreamConfig[] = [
       source: 'All',
       tags: [],
     },
+    dropdownType: 'source',
+    currentDropdownValue: 'All',
   },
 ];
 
@@ -79,33 +85,57 @@ export const Dashboard: React.FC = () => {
     selectedAnnouncement,
     setSelectedAnnouncement,
     connectionStatus,
+    stats,
+    setStats,
   } = useDashboardStore();
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
   const [globalSearch, setGlobalSearch] = useState('');
+
+  // Fetch initial database statistics on mount
+  useEffect(() => {
+    let active = true;
+    const loadInitialStats = async () => {
+      try {
+        const initialStats = await announcementsService.fetchStats();
+        if (active) {
+          setStats(initialStats);
+        }
+      } catch (err) {
+        console.error('Failed to load initial stats:', err);
+      }
+    };
+    loadInitialStats();
+    return () => {
+      active = false;
+    };
+  }, [setStats]);
 
   const handleDropdownChange = (streamId: string, val: string) => {
     setStreams((prev) =>
       prev.map((s) => {
         if (s.id !== streamId) return s;
         
-        let newSearch = '';
-        if (s.dropdownType === 'sectors') {
-          if (val === 'tech') newSearch = 'tech software IT digital computer TCS Infosys Wipro HCL TechM LTIMindtree semiconductor';
-          if (val === 'finance') newSearch = 'finance banking bank credit interest rate loan debt HDFC ICICI SBI Axis Kotak';
-          if (val === 'energy') newSearch = 'energy power oil gas petrol solar wind Reliance NTPC ONGC IOC Coal';
-          if (val === 'healthcare') newSearch = 'healthcare pharma drug medicine hospital Sun Pharma Reddy Cipla Lupin Apollo';
-          if (val === 'automobile') newSearch = 'automobile auto car bike vehicle Tata Motors Maruti Mahindra Eicher Bajaj';
-        } else if (s.dropdownType === 'marketcap') {
-          newSearch = '';
-        }
-
         return {
           ...s,
           currentDropdownValue: val,
+          // Reset subsector when sector changes
+          ...(s.dropdownType === 'sectors' ? { currentSubsectorValue: 'All' } : {}),
           filter: {
             ...s.filter,
-            search: newSearch,
+            search: '',
           },
+        };
+      })
+    );
+  };
+
+  const handleSubsectorChange = (streamId: string, val: string) => {
+    setStreams((prev) =>
+      prev.map((s) => {
+        if (s.id !== streamId) return s;
+        return {
+          ...s,
+          currentSubsectorValue: val,
         };
       })
     );
@@ -113,7 +143,7 @@ export const Dashboard: React.FC = () => {
   
   // Custom streams state with localStorage persistence
   // Using versioned key to force reset when stream config schema changes
-  const STREAMS_STORAGE_KEY = 'financial_terminal_streams_v3';
+  const STREAMS_STORAGE_KEY = 'financial_terminal_streams_v5';
   const [streams, setStreams] = useState<StreamConfig[]>(() => {
     const saved = localStorage.getItem(STREAMS_STORAGE_KEY);
     if (saved) {
@@ -217,7 +247,7 @@ export const Dashboard: React.FC = () => {
       {/* Top Header */}
       <header className="h-16 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between px-6 z-10">
         
-        {/* Left: Branding */}
+        {/* Left: Branding & Daily Stats Counters */}
         <div className="flex items-center gap-3">
           <h1 className="text-base font-extrabold text-slate-800 tracking-wider uppercase flex items-center gap-1.5">
             <span className="bg-indigo-600 text-white w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-black tracking-normal">F</span>
@@ -231,6 +261,22 @@ export const Dashboard: React.FC = () => {
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider hidden sm:inline">
               {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
             </span>
+          </div>
+
+          {/* Daily Counters */}
+          <div className="hidden md:flex items-center gap-3.5 ml-4 pl-4 border-l border-gray-200">
+            <div className="flex items-center gap-1.5" title="Today's NSE filings count">
+              <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-1.5 py-0.5 rounded-md uppercase tracking-wider">NSE</span>
+              <span className="text-xs font-bold text-slate-700">{stats.nseToday.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1.5" title="Today's BSE filings count">
+              <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 border border-blue-100/60 px-1.5 py-0.5 rounded-md uppercase tracking-wider">BSE</span>
+              <span className="text-xs font-bold text-slate-700">{stats.bseToday.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1.5" title="Today's News filings count">
+              <span className="text-[9px] font-extrabold text-violet-600 bg-violet-50 border border-violet-100/60 px-1.5 py-0.5 rounded-md uppercase tracking-wider">News</span>
+              <span className="text-xs font-bold text-slate-700">{stats.newsToday.toLocaleString()}</span>
+            </div>
           </div>
         </div>
 
@@ -299,7 +345,9 @@ export const Dashboard: React.FC = () => {
               onMoveRight={idx < streams.length - 1 ? () => handleMoveStream(idx, 'right') : undefined}
               dropdownType={stream.dropdownType}
               currentDropdownValue={stream.currentDropdownValue}
+              currentSubsectorValue={stream.currentSubsectorValue}
               onDropdownChange={(val) => handleDropdownChange(stream.id, val)}
+              onSubsectorChange={(val) => handleSubsectorChange(stream.id, val)}
             />
           ))}
 
