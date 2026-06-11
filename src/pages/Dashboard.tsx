@@ -19,7 +19,6 @@ interface ToastNotification {
   announcement: Announcement;
 }
 
-
 interface StreamConfig {
   id: string;
   name: string;
@@ -28,9 +27,8 @@ interface StreamConfig {
     source: string;
     tags: string[];
   };
-  dropdownType?: 'sectors' | 'marketcap' | 'source';
+  dropdownType?: 'sectors' | 'marketcap';
   currentDropdownValue?: string;
-  currentSubsectorValue?: string;
 }
 
 const DEFAULT_STREAMS: StreamConfig[] = [
@@ -38,13 +36,12 @@ const DEFAULT_STREAMS: StreamConfig[] = [
     id: 'stream-sectors',
     name: 'Sectors',
     filter: {
-      search: '',
+      search: 'tech software IT digital computer TCS Infosys Wipro HCL TechM LTIMindtree semiconductor',
       source: 'All',
       tags: [],
     },
     dropdownType: 'sectors',
-    currentDropdownValue: 'All',
-    currentSubsectorValue: 'All',
+    currentDropdownValue: 'tech',
   },
   {
     id: 'stream-marketcap',
@@ -74,8 +71,6 @@ const DEFAULT_STREAMS: StreamConfig[] = [
       source: 'All',
       tags: [],
     },
-    dropdownType: 'source',
-    currentDropdownValue: 'All',
   },
 ];
 
@@ -93,27 +88,24 @@ export const Dashboard: React.FC = () => {
       prev.map((s) => {
         if (s.id !== streamId) return s;
         
+        let newSearch = '';
+        if (s.dropdownType === 'sectors') {
+          if (val === 'tech') newSearch = 'tech software IT digital computer TCS Infosys Wipro HCL TechM LTIMindtree semiconductor';
+          if (val === 'finance') newSearch = 'finance banking bank credit interest rate loan debt HDFC ICICI SBI Axis Kotak';
+          if (val === 'energy') newSearch = 'energy power oil gas petrol solar wind Reliance NTPC ONGC IOC Coal';
+          if (val === 'healthcare') newSearch = 'healthcare pharma drug medicine hospital Sun Pharma Reddy Cipla Lupin Apollo';
+          if (val === 'automobile') newSearch = 'automobile auto car bike vehicle Tata Motors Maruti Mahindra Eicher Bajaj';
+        } else if (s.dropdownType === 'marketcap') {
+          newSearch = '';
+        }
+
         return {
           ...s,
           currentDropdownValue: val,
-          // Reset subsector when sector changes
-          ...(s.dropdownType === 'sectors' ? { currentSubsectorValue: 'All' } : {}),
           filter: {
             ...s.filter,
-            search: '',
+            search: newSearch,
           },
-        };
-      })
-    );
-  };
-
-  const handleSubsectorChange = (streamId: string, val: string) => {
-    setStreams((prev) =>
-      prev.map((s) => {
-        if (s.id !== streamId) return s;
-        return {
-          ...s,
-          currentSubsectorValue: val,
         };
       })
     );
@@ -121,7 +113,7 @@ export const Dashboard: React.FC = () => {
   
   // Custom streams state with localStorage persistence
   // Using versioned key to force reset when stream config schema changes
-  const STREAMS_STORAGE_KEY = 'financial_terminal_streams_v5';
+  const STREAMS_STORAGE_KEY = 'financial_terminal_streams_v3';
   const [streams, setStreams] = useState<StreamConfig[]>(() => {
     const saved = localStorage.getItem(STREAMS_STORAGE_KEY);
     if (saved) {
@@ -307,9 +299,7 @@ export const Dashboard: React.FC = () => {
               onMoveRight={idx < streams.length - 1 ? () => handleMoveStream(idx, 'right') : undefined}
               dropdownType={stream.dropdownType}
               currentDropdownValue={stream.currentDropdownValue}
-              currentSubsectorValue={stream.currentSubsectorValue}
               onDropdownChange={(val) => handleDropdownChange(stream.id, val)}
-              onSubsectorChange={(val) => handleSubsectorChange(stream.id, val)}
             />
           ))}
 
